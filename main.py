@@ -94,14 +94,12 @@ class PermissionRemappedFilesystem(fuse.LoggingMixIn, fuse.Operations):
         return path
 
     def mknod(self, path, mode, dev):
-        print('MKNOD ' + path)
         return os.mknod(self.get_src_path(path), mode, dev)
 
     def rmdir(self, path):
         return os.rmdir(self.get_src_path(path))
 
     def mkdir(self, path, mode):
-        print('MKDIR ' + path)
         return os.mkdir(self.get_src_path(path), mode)
 
     def statfs(self, path):
@@ -123,9 +121,7 @@ class PermissionRemappedFilesystem(fuse.LoggingMixIn, fuse.Operations):
         return os.unlink(self.get_src_path(path))
 
     def symlink(self, target, source):
-        # TODO: verify
-        print('Symlink: ' + target + ', ' + source)
-        return os.symlink(self.get_src_path(target), self.get_src_path(source))
+        return os.symlink(source, self.get_src_path(target))
 
     def rename(self, old, new):
         return os.rename(self.get_src_path(old), self.get_src_path(new))
@@ -140,8 +136,7 @@ class PermissionRemappedFilesystem(fuse.LoggingMixIn, fuse.Operations):
         return os.open(self.get_src_path(path), flags)
 
     def create(self, path, mode, fi=None):
-        print('Create ' + path)
-        os.open(self.get_src_path(path), os.O_WRONLY | os.O_CREAT, mode)
+        return os.open(self.get_src_path(path), os.O_WRONLY | os.O_CREAT, mode)
 
     def read(self, path, size, offset, fh):
         os.lseek(fh, offset, os.SEEK_SET)
@@ -152,8 +147,11 @@ class PermissionRemappedFilesystem(fuse.LoggingMixIn, fuse.Operations):
         return os.write(fh, data)
 
     def truncate(self, path, length, fh=None):
-        with open(self.get_src_path(path), 'r+') as f:
-            f.truncate(length)
+        if fh is not None:
+            os.ftruncate(fh, length)
+        else:
+            with open(self.get_src_path(path), 'rb+') as f:
+                f.truncate(length)
 
     def flush(self, path, fh):
         return os.fsync(fh)
