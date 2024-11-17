@@ -17,6 +17,7 @@ class PermissionRemappedFilesystem(fuse.LoggingMixIn, fuse.Operations):
                 self.permissions = json.load(file)
         else:
             self.permissions = {}
+        self.opened_files_descriptors = []
 
     def get_src_path(self, path: str):
         return os.path.join(self.src_path, path[1:] if path[0] == '/' else path)
@@ -136,7 +137,9 @@ class PermissionRemappedFilesystem(fuse.LoggingMixIn, fuse.Operations):
         return os.open(self.get_src_path(path), flags)
 
     def create(self, path, mode, fi=None):
-        return os.open(self.get_src_path(path), os.O_WRONLY | os.O_CREAT, mode)
+        fh = os.open(self.get_src_path(path), os.O_WRONLY | os.O_CREAT, mode)
+        self.opened_files_descriptors.append(fh)
+        return fh
 
     def read(self, path, size, offset, fh):
         os.lseek(fh, offset, os.SEEK_SET)
@@ -157,6 +160,7 @@ class PermissionRemappedFilesystem(fuse.LoggingMixIn, fuse.Operations):
         return os.fsync(fh)
 
     def release(self, path, fh):
+        self.opened_files_descriptors.remove(fh)
         return os.close(fh)
 
     def fsync(self, path, datasync, fh):
@@ -166,6 +170,8 @@ class PermissionRemappedFilesystem(fuse.LoggingMixIn, fuse.Operations):
         print('FS mounted')
 
     def destroy(self, root):
+        for fh in self.opened_files_descriptors:
+            os.close(fh)
         final_perms = {}
         for path, perms in self.permissions.items():
             stats = os.lstat(self.get_src_path(path))
