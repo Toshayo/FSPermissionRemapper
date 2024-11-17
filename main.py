@@ -1,7 +1,10 @@
 import errno
 import json
-import os, stat, time, fuse
+import os
 import sys
+
+# noinspection PyPackageRequirements
+import fuse
 
 
 class PermissionRemappedFilesystem(fuse.LoggingMixIn, fuse.Operations):
